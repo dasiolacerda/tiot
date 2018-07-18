@@ -4,7 +4,7 @@ $conteudo_html = ob_get_clean();
 include('matriz.php');
 
 function subDayIntoDate($date, $days) {
-    $thisday = substr($date, 0, 2);
+    $thisday = substr($date, 0, 2); 
     $thismonth = substr($date, 3, 8);
     $thisyear = substr($date, 7, 10);
     $nextdate = mktime(0, 0, 0, $thismonth, $thisday - $days, $thisyear);

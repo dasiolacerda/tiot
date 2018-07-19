@@ -111,18 +111,24 @@
             $dataFinal  = filter_input(INPUT_POST, 'dataS');
             $data_inicial = _myfunc_dtos($dataInicial)+1;
             $data_final = _myfunc_dtos($dataFinal)-1;
+
+            // verifica lista de quartos ocupados
+            $sqlOcupados = "SELECT n.id_hotel_local as qto FROM $TNFDOCUMENTOS_TMP n, $TLANCAMENTOS_TMP l, $TAPARTAMENTOS a, $TCNPJCPF c WHERE  n.dono = l.dono AND a.id_hotel_local = n.id_hotel_local AND c.cnpj = l.cnpjcpf AND l.contac <> '' AND '$data_inicial' < n.datasaida group by n.id_hotel_local";
+            $getOcupados = mysqli_query($conn_a, $sqlOcupados);
+            while ($ocupados = mysqli_fetch_assoc($getOcupados)) {
+                $qtosOcupados[] = $ocupados['qto'];
+            }
             
             $filtro_periodo="('$data_inicial' >= entrada && '$data_inicial' <= saida) || ('$data_final' >= entrada && '$data_final' <= saida) || (entrada >= '$data_inicial' && saida <= '$data_final')";
-            // nessa linha abaixo esta com o nome da tabela digitado e não usando variavel pois não esta no arquivo de tabelas informado na ultima versão a proxima linha esta com a variavel correta
             $sqlReservas = "SELECT id_hotel_local, classifica, status FROM $TAPARTAMENTOS WHERE id_hotel_local NOT IN(SELECT id_hotel_local FROM apartamentos_reservas WHERE $filtro_periodo GROUP BY id_hotel_local)";
-            //$sqlReservas = "SELECT id_hotel_local, classifica, status FROM $TAPARTAMENTOS WHERE id_hotel_local NOT IN(SELECT id_hotel_local FROM $TAPARTAMENTOS_RESERVAS WHERE $filtro_periodo GROUP BY id_hotel_local)";
-//            exit($sqlReservas);
             $aptos = mysqli_query($conn_a, $sqlReservas);
             $statu = array('M', 'D');
             while($vagos = mysqli_fetch_assoc($aptos)) {
                 if (!in_array($vagos['status'], $statu)) {
                     //echo $vagos['status'];
-                    echo "<option value='".$vagos['id_hotel_local']."-".$vagos['classifica']."'>".$vagos['id_hotel_local']."-".$vagos['classifica']."</option>"; 
+                    if (!in_array($vagos['id_hotel_local'], $qtosOcupados)) { // se estiver na lista de quartos ocupado não escreve
+                        echo "<option value='".$vagos['id_hotel_local']."-".$vagos['classifica']."'>".$vagos['id_hotel_local']."-".$vagos['classifica']."</option>"; 
+                    }
                 }
             }
             break;
@@ -134,8 +140,8 @@
             $quarto = filter_input(INPUT_POST, 'qto'); 
             $dtE = filter_input(INPUT_POST, 'dataI');
             $dtS = filter_input(INPUT_POST, 'dataS');
-            $dataE = _myfunc_dtos($dtE);
-            $dataS = _myfunc_dtos($dtS);
+            $dataE = _myfunc_dtos($dtE)+1;
+            $dataS = _myfunc_dtos($dtS)-1;
             $obs = utf8_decode(filter_input(INPUT_POST, 'obs'));
             $apto = explode('-', $quarto);
             //$rclassifica = substr(strrchr($classifica, "-"), 1);
@@ -163,24 +169,35 @@
                 exit($mens_data);
             }
             
+            $sqlOcupados = "SELECT n.datasaida as saida FROM $TNFDOCUMENTOS_TMP n, $TLANCAMENTOS_TMP l, $TAPARTAMENTOS a, $TCNPJCPF c WHERE n.id_hotel_local = '".$apto[0]."' AND n.dono = l.dono AND a.id_hotel_local = n.id_hotel_local AND c.cnpj = l.cnpjcpf AND l.contac <> '' group by n.id_hotel_local";
+            //exit($sqlOcupados);
+            $getOcupados = mysqli_query($conn_a, $sqlOcupados);
+            $ocupados = mysqli_fetch_assoc($getOcupados);
+            if (!empty($ocupados['saida']) && $dataE < $ocupados['saida']  ) {
+                exit("Quarto ocupado, por favor escolha outro!");
+            }
+            
             $filtro_periodo="('$dataE' >= entrada && '$dataE' <= saida) || ('$dataS' >= entrada && '$dataS' <= saida) || (entrada >= '$dataE' && saida <= '$dataS')";
             // nessa linha abaixo esta com o nome da tabela digitado e não usando variavel pois não esta no arquivo de tabelas informado na ultima versão a proxima linha esta com a variavel correta
             $sqlReservas = "SELECT id_hotel_local FROM $TAPARTAMENTOS WHERE id_hotel_local NOT IN(SELECT id_hotel_local FROM apartamentos_reservas WHERE $filtro_periodo GROUP BY id_hotel_local)";
             //$sqlReservas = "SELECT id_hotel_local FROM $TAPARTAMENTOS WHERE id_hotel_local NOT IN(SELECT id_hotel_local FROM $TAPARTAMENTOS_RESERVAS WHERE $filtro_periodo GROUP BY id_hotel_local)";
             $getReservas = mysqli_query($conn_a, $sqlReservas);
-            $qtoDisp = mysqli_fetch_assoc($getReservas);
+            $qtosDisp = array();
+            while ($qtoDisp = mysqli_fetch_assoc($getReservas)) {
+                $qtosDisp[] = $qtoDisp['id_hotel_local'];
+            }
             
-            if (in_array($apto[1], $qtoDisp)) {
+            if (in_array($apto[0], $qtosDisp)) {
                 // nessa linha abaixo esta com o nome da tabela digitado e não usando variavel pois não esta no arquivo de tabelas informado na ultima versão a proxima linha esta com a variavel correta
                 $query = "INSERT INTO apartamentos_reservas VALUES('".$apto[1]."', '$dataE', '$dataS', '$hospede', '$obs', '".$_SESSION['ADMIN']['cnpj']."', '$dtos', '','','".$apto[0]."')";
                 //$query = "INSERT INTO $TAPARTAMENTOS_RESERVAS VALUES('".$apto[1]."', '$dataE', '$dataS', '$hospede', '$obs', '".$_SESSION['ADMIN']['cnpj']."', '$dtos', '','','".$apto[0]."')";
                 if (mysqli_query($conn_a, $query)) {
                     echo 'TRUE';
                 } else {
-                    echo 'Falha ao reserver quarto, por favor entre em contato com suporte! '.mysqli_error($conn_a);
+                    echo 'Falha ao reservar quarto, por favor entre em contato com suporte! '.mysqli_error($conn_a);
                 }
             } else {
-                echo 'Falha ao reserver quarto, por favor escolha um quarto disponivel! ';
+                echo 'Falha ao reservar quarto, por favor escolha um quarto disponivel! ';
             }
             
             
@@ -291,7 +308,7 @@
                 
                 
             } 
-            $html  = "<font size='2'><b>Hospede</b><br></font><font size='2'> ".$nome." </font>";
+            $html  = "<font size='2'><b>Hospede</b><br></font><font size='2'> ".utf8_encode($nome)." </font>";
             $html .= "<br><font size='2'><b>Ramal</b><br></font><font size='2'> ".$ramal." </font>";
             $html .= "<br><font size='2'><b>Data Entrada</b><br></font><font size='2'> ".$data." </font>";
             if (!empty($hospede['datasaida'])) {

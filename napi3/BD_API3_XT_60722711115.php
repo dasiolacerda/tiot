@@ -37,12 +37,12 @@
             $note = mysqli_fetch_array($getNoteBem);
             if (empty($note['notebem'])) {
                 $sqlUpdate = "UPDATE $TNFDOCUMENTOS_TMP SET notebem = '".$_SESSION['obsReser']."' WHERE dono = '".$_SESSION['donReser']."'";
+                //echo $sqlUpdate.'<br><br>';
                 $updateNfDocs = mysqli_query($conn_a, $sqlUpdate) or exit(mysqli_error($conn_a));
             } 
+            unset($_SESSION['obsReser']);
+            unset($_SESSION['donReser']);
         }
-
-        unset($_SESSION['obsReser']);
-        unset($_SESSION['donReser']);
 
         mysqli_query($conn_a, "UPDATE $TNFDOCUMENTOS_TMP SET id_hotel_local = '" . $_SESSION['qtoInfo'] . "' WHERE dono = '".$_SESSION['qtoDono']."'");
         unset($_SESSION['qtoDono']);
@@ -109,7 +109,7 @@ switch ($inc) {
         
         // atualizar itens
         if (isset($_POST['btacoes']) && $_POST['btacoes'] == ' (=) Atualizar ') {
-            echo var_dump($_POST).'<BR><BR>';
+            //echo var_dump($_POST).'<BR><BR>';
             //echo $_SESSION['PERMSHotel'];
             if ($_SESSION['ItemEdit']['itemFlux'] == $_POST['num_id_item']) {
                 
@@ -121,15 +121,19 @@ switch ($inc) {
                 $getProduto = mysqli_query($conn_a, $sqlProduto);
                 $pr = mysqli_fetch_array($getProduto);
 
-                if ($_POST['valor_item'] > $pr['valor']) {
-                    $sqlNatureOpIt = "SELECT codnat FROM $TNATUREZAOPERACAO WHERE contaprodutos = '".$itemsR['conta_plano']."'";
+                $sqlServico = "SELECT valor FROM $TSERVICOS WHERE conta = '".$itemsR['cprod']."'";
+                $getServico = mysqli_query($conn_a, $sqlServico);
+                $sr = mysqli_fetch_array($getServico);
+
+                if ($_POST['valor_item'] < $sr['valor'] || $_POST['valor_item'] > $sr['valor']) {
+                    $sqlNatureOpIt = "SELECT codnat FROM $TNATUREZAOPERACAO WHERE contaservicos = '".$itemsR['conta_plano']."'";
                     //echo $sqlNatureOpIt.'<br><br>';
                     $getNatureOpIt = mysqli_query($conn_a, $sqlNatureOpIt);
                     $naturezaIt = mysqli_fetch_assoc($getNatureOpIt);
                     if ($naturezaIt['codnat'] <> '' && !eregi(':500.105', $_SESSION['PERMSHotel'])) {
                         ?>
                             <script type="text/javascript"> 
-                                alert("Erro ao tentar editar o valor dos produtos!");
+                                alert("Sem permiss\u00E3o para alterar valor deste lan\u00E7amento!");
                                 location.href = '<?php echo $_SERVER['HTTP_REFERER']?>';
                             </script>       
                         <?php
@@ -155,7 +159,7 @@ switch ($inc) {
                         if (!isset($pu['alterarServicos']) || trim($pu['alterarServicos']) != 'S') {
                             ?>
                                 <script type="text/javascript"> 
-                                    alert("Erro ao tentar editar o numero de diarias!");
+                                    alert("Sem permiss\u00E3o para alterar lan\u00E7amento!");
                                     location.href = '<?php echo $_SERVER['HTTP_REFERER']?>';
                                 </script>       
                             <?php

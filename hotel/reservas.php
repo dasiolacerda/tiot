@@ -109,7 +109,7 @@
                 dataE = $("#dataEntra").val(),
                 dataF = $("#dataSai").val();
                 
-            if (dataE !== '' && dataF !== '' && quartoLivre !== '') {
+            if (dataE !== '' && dataF !== '' && quartoLivre !== '' && hospede !== '') {
                 $.ajax({
                     type: "POST",
                     data: 'tipo=insereReserva&dataI='+dataE+'&dataS='+dataF+'&hospede='+hospede+'&qto='+quartoLivre+'&obs='+obs,

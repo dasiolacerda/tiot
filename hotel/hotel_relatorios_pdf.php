@@ -1691,8 +1691,10 @@ switch ($id_pdf_php) {
                 case 'REMOVERESERVA':
                 case 'REMOVECONTABIL':
                     $reser  = explode('|', $infoLog[2]);
+                    $cprod  = explode('|', $infoLog[3]);
                     //exit(var_dump($reser));
                     $rel[$i]['reserv']   = $reser[2];
+                    $rel[$i]['Hosped']   = $cprod[2];
                     break;
             }
             
@@ -1720,7 +1722,7 @@ switch ($id_pdf_php) {
             
             switch ($r['rotina']) {
                 case 'REMOVERESERVA':
-                    $msg = "REMOVEU RESERVA DO QUARTO ".$r['reserv'];
+                    $msg = "REMOVEU RESERVA DO QUARTO ".$r['reserv'].", ".$r['Hosped'];
                     $infoQto = "Quarto "._get_qto($r['dono'], $conn_a, $TNFDOCUMENTOS_TMP);
                     break;
                 case 'REMOVECONTABIL':
@@ -1806,201 +1808,208 @@ switch ($id_pdf_php) {
                 $tam = 20;
             }
             if ($k == 'hist') {
-                $tam = 55;
+                $tam = 60;
             }
             $pdf->Cell($tam, 5, utf8_encode(strtoupper($v)), 1, 0, 'C');
         }
-       
-        $sqlLancamentosHj = "SELECT id, cnpjcpf, dono, donoanterior, data, contad, contac, valor, movimento, tipodocfinanceiro, documento FROM $TLANCAMENTOS WHERE tipodocfinanceiro IS NOT NULL AND data BETWEEN '$hj_I_Query' AND '$hj_F_Query' ORDER BY id";
-        $getLancamentosHj = mysqli_query($conn_a, $sqlLancamentosHj);
-        $linha = 0;
-        $movi['docs'] = $movi['hist'] = array();
-        while ($lh = mysqli_fetch_assoc($getLancamentosHj)) {
-            //echo $lh['dono'].' - '.$lh['donoanterior'].'<br>';
-            if (substr($lh['dono'], 0, 3) == 'LAN' || (substr($lh['dono'], 0, 4) == 'COMR' && empty($lh['donoanterior'])  || (substr($lh['dono'], 0, 5) == 'COMPP' && empty($lh['donoanterior']) ) ) ) {
-                if ( (!empty($lh['contad']) && substr($lh['contad'], 0, 1) == '1') || (!empty($lh['contac']) && substr($lh['contac'], 0, 1) == '1') ) {
-                    $dados_cliente = _myfun_dados_cnpjcpf($lh['cnpjcpf']);
-                    $movi['docs'][$linha] = $lh['documento'];
-                    $movi['hist'][$linha] = $dados_cliente['razao'];
-                    if (!empty($lh['contad']) && substr($lh['contad'], 0, 1) == '1') {
-                        $movi[$lh['contad']][$linha]  = $lh['valor'];
-                        $contasE[$lh['contad']] += $lh['valor'];
-                        $contasT[$lh['contad']] += $lh['valor'];
-                    }
-
-                    if (!empty($lh['contac']) && substr($lh['contac'], 0, 1) == '1') {
-                        $movi[$lh['contac']][$linha]  = number_format(($lh['valor'] * -1), 2, '.', '');
-                        if (array_key_exists($lh['contac'], $contasD)) {
-                            $contasS[$lh['contac']] += $lh['valor'];
-                            $contasT[$lh['contac']] += ($lh['valor'] * -1);
+        $totalContasD = count($contasD);
+        
+        //if ($totalContasD > 2) {
+            $sqlLancamentosHj = "SELECT id, cnpjcpf, dono, donoanterior, data, contad, contac, valor, movimento, tipodocfinanceiro, documento, historico FROM $TLANCAMENTOS WHERE tipodocfinanceiro IS NOT NULL AND data BETWEEN '$hj_I_Query' AND '$hj_F_Query' ORDER BY id";
+            $getLancamentosHj = mysqli_query($conn_a, $sqlLancamentosHj);
+            $linha = 0;
+            
+            $movi['docs'] = $movi['hist'] = array();
+            while ($lh = mysqli_fetch_assoc($getLancamentosHj)) {
+                $histLan = '';
+                //echo $lh['dono'].' - '.$lh['donoanterior'].'<br>';
+                if (substr($lh['dono'], 0, 3) == 'LAN' || (substr($lh['dono'], 0, 4) == 'COMR' && empty($lh['donoanterior'])  || (substr($lh['dono'], 0, 5) == 'COMPP' && empty($lh['donoanterior']) ) ) ) {
+                    if ( (!empty($lh['contad']) && substr($lh['contad'], 0, 1) == '1') || (!empty($lh['contac']) && substr($lh['contac'], 0, 1) == '1') ) {
+                        $dados_cliente = _myfun_dados_cnpjcpf($lh['cnpjcpf']);
+                        if (!empty($lh['historico'])) {
+                            $histLan = $lh['historico'].' - ';
                         }
-                    }
+                        $movi['docs'][$linha] = $lh['documento'];
+                        $movi['hist'][$linha] = $histLan.$dados_cliente['razao'];
+                        if (!empty($lh['contad']) && substr($lh['contad'], 0, 1) == '1') {
+                            $movi[$lh['contad']][$linha]  = $lh['valor'];
+                            $contasE[$lh['contad']] += $lh['valor'];
+                            $contasT[$lh['contad']] += $lh['valor'];
+                        }
 
-                    $linha++;
+                        if (!empty($lh['contac']) && substr($lh['contac'], 0, 1) == '1') {
+                            $movi[$lh['contac']][$linha]  = number_format(($lh['valor'] * -1), 2, '.', '');
+                            if (array_key_exists($lh['contac'], $contasD)) {
+                                $contasS[$lh['contac']] += $lh['valor'];
+                                $contasT[$lh['contac']] += ($lh['valor'] * -1);
+                            }
+                        }
+
+                        $linha++;
+                    }
                 }
+    //                if (isset($ps['diario']) && trim($ps['diario']) == 'Dinheiro') {
+    //                    //echo ' Entrou em existe diario e diario = dinheiro - ';
+    //                    if ($lh['tipodocfinanceiro'] == 'DHR') {
+    //                        //echo ' entrou - dinehrio';
+    //                        $recebH += $lh['valor'];
+    //                    }
+    //                } else {
+    //                    //echo ' não entrou em existe diario e diario = Dinheiro -';
+    //                    $recebH += $lh['valor'];
+    //                }
             }
 
-//                if (isset($ps['diario']) && trim($ps['diario']) == 'Dinheiro') {
-//                    //echo ' Entrou em existe diario e diario = dinheiro - ';
-//                    if ($lh['tipodocfinanceiro'] == 'DHR') {
-//                        //echo ' entrou - dinehrio';
-//                        $recebH += $lh['valor'];
-//                    }
-//                } else {
-//                    //echo ' não entrou em existe diario e diario = Dinheiro -';
-//                    $recebH += $lh['valor'];
-//                }
-        }
+            for ($a = 0;$a < $linha;$a++) { // pra cada linha existente 
+                $pdf->Ln(5); // volta a linha 
+                foreach ($contasD as $k4=>$v4) { // pega a chave do array
+                    $tam = 23;
+                    $valor = '';
+                    $alin  = 'C';
+                    if (!empty($movi[$k4][$a])) {
+                        $valor = number_format($movi[$k4][$a], 2, ',', '.');
+                    }
 
-        for ($a = 0;$a < $linha;$a++) { // pra cada linha existente 
-            $pdf->Ln(5); // volta a linha 
-            foreach ($contasD as $k4=>$v4) { // pega a chave do array
+                    if ($k4 == 'docs') {
+                        $tam = 20;
+                        $valor = $movi[$k4][$a];
+                        $alin  = 'L';
+                    }
+
+                    if ($k4 == 'hist') {
+                        $tam = 60;
+                        $valor = $movi[$k4][$a];
+                        $alin  = 'L';
+                    }
+                    //$pdf->MultiCell($tam, 10, $valor, 0, $alin);
+                    $pdf->Cell($tam, 5, $valor, 1, 0, $alin); //escreve o valor e escreve
+                }
+
+            }
+
+            $pdf->Ln(5);
+            foreach ($contasD as $k=>$v) {
+                $tam = 23;
+                if ($k == 'docs') {
+                    $tam = 20;
+                    $v = '';
+                }
+                if ($k == 'hist') {
+                    $tam = 60;
+                    $v = '';
+                }
+                $pdf->Cell($tam, 5, utf8_encode(strtoupper($v)), 1, 0, 'C');
+            }
+
+            $pdf->Ln(5);
+            foreach ($contasE as $k=>$v) {
                 $tam = 23;
                 $valor = '';
-                $alin  = 'C';
-                if (!empty($movi[$k4][$a])) {
-                    $valor = number_format($movi[$k4][$a], 2, ',', '.');
-                }
-
-                if ($k4 == 'docs') {
+                $alin = 'C';
+                if ($k == 'docs') {
                     $tam = 20;
-                    $valor = $movi[$k4][$a];
-                    $alin  = 'L';
+                    $v = '';
+                }
+                if ($k == 'hist') {
+                    $tam = 60;
+                    $v = '';
+                    $valor = 'ENTRADAS: ';
+                    $alin = 'R';
                 }
 
-                if ($k4 == 'hist') {
-                    $tam = 55;
-                    $valor = $movi[$k4][$a];
-                    $alin  = 'L';
+                if (!empty($v)) {
+                    $valor = number_format($v, 2, ',', '.');
                 }
-                $pdf->Cell($tam, 5, $valor, 1, 0, $alin); //escreve o valor e escreve
+
+                $pdf->Cell($tam, 5, $valor, 1, 0, $alin);
             }
 
-        }
+            $pdf->Ln(5);
+            foreach ($contasS as $k=>$v) {
+                $tam = 23;
+                $valor = '';
+                $alin = 'C';
+                if ($k == 'docs') {
+                    $tam = 20;
+                    $v = '';
+                }
+                if ($k == 'hist') {
+                    $tam = 60;
+                    $v = '';
+                    $valor = utf8_decode('SAÍDAS: ');
+                    $alin = 'R';
+                }
 
-        $pdf->Ln(5);
-        foreach ($contasD as $k=>$v) {
-            $tam = 23;
-            if ($k == 'docs') {
-                $tam = 20;
-                $v = '';
-            }
-            if ($k == 'hist') {
-                $tam = 55;
-                $v = '';
-            }
-            $pdf->Cell($tam, 5, utf8_encode(strtoupper($v)), 1, 0, 'C');
-        }
+                if (!empty($v)) {
+                    $valor = number_format(($v * -1), 2, ',', '.');
+                }
 
-        $pdf->Ln(5);
-        foreach ($contasE as $k=>$v) {
-            $tam = 23;
-            $valor = '';
-            $alin = 'C';
-            if ($k == 'docs') {
-                $tam = 20;
-                $v = '';
-            }
-            if ($k == 'hist') {
-                $tam = 55;
-                $v = '';
-                $valor = 'ENTRADAS: ';
-                $alin = 'R';
+                $pdf->Cell($tam, 5, $valor, 1, 0, $alin);
             }
 
-            if (!empty($v)) {
-                $valor = number_format($v, 2, ',', '.');
+            $pdf->Ln(5);
+            foreach ($contasT as $k=>$v) {
+                $tam = 23;
+                $valor = '';
+                $alin = 'C';
+                if ($k == 'docs') {
+                    $tam = 20;
+                    $v = '';
+                }
+                if ($k == 'hist') {
+                    $tam = 60;
+                    $v = '';
+                    $valor = utf8_decode('TOTAL: ');
+                    $alin = 'R';
+                }
+
+                if (!empty($v)) {
+                    $valor = number_format($v, 2, ',', '.');
+                }
+
+                $pdf->Cell($tam, 5, $valor, 1, 0, $alin);
             }
 
-            $pdf->Cell($tam, 5, $valor, 1, 0, $alin);
-        }
-
-        $pdf->Ln(5);
-        foreach ($contasS as $k=>$v) {
-            $tam = 23;
-            $valor = '';
-            $alin = 'C';
-            if ($k == 'docs') {
-                $tam = 20;
-                $v = '';
-            }
-            if ($k == 'hist') {
-                $tam = 55;
-                $v = '';
-                $valor = utf8_decode('SAÍDAS: ');
-                $alin = 'R';
+            $pdf->Ln(15);
+            foreach ($saldoDia as $k=>$v) {
+                if (array_key_exists($k, $contasD)) {
+                    $pdf->Cell(35, 5, strtoupper($contasD[$k]), 1, 0, 'C');
+                }
             }
 
-            if (!empty($v)) {
-                $valor = number_format(($v * -1), 2, ',', '.');
+            $pdf->Ln(5);
+            foreach ($saldoDia as $k=>$v) {
+                if (array_key_exists($k, $contasD)) {
+                    $saldoA = explode('|', $saldoDia[$k]);
+                    $pdf->Cell(20, 5, "SALDO INICIAL", 1, 0, 'C');
+                    $pdf->Cell(15, 5, number_format($saldoA[0], 2,',','.'), 1, 0, 'C');
+                }
             }
 
-            $pdf->Cell($tam, 5, $valor, 1, 0, $alin);
-        }
-
-        $pdf->Ln(5);
-        foreach ($contasT as $k=>$v) {
-            $tam = 23;
-            $valor = '';
-            $alin = 'C';
-            if ($k == 'docs') {
-                $tam = 20;
-                $v = '';
-            }
-            if ($k == 'hist') {
-                $tam = 55;
-                $v = '';
-                $valor = utf8_decode('TOTAL: ');
-                $alin = 'R';
+            $pdf->Ln(5);
+            foreach ($saldoDia as $k=>$v) {
+                if (array_key_exists($k, $contasE)) {
+                    $pdf->Cell(20, 5, "+ ENTRADAS", 1, 0, 'C');
+                    $pdf->Cell(15, 5, number_format($contasE[$k], 2,',','.'), 1, 0, 'C');
+                }
             }
 
-            if (!empty($v)) {
-                $valor = number_format($v, 2, ',', '.');
+            $pdf->Ln(5);
+            foreach ($saldoDia as $k=>$v) {
+                if (array_key_exists($k, $contasS)) {
+                    $pdf->Cell(20, 5, "- SAIDAS", 1, 0, 'C');
+                    $pdf->Cell(15, 5, number_format($contasS[$k], 2,',','.'), 1, 0, 'C');
+                }
             }
 
-            $pdf->Cell($tam, 5, $valor, 1, 0, $alin);
-        }
-
-        $pdf->Ln(15);
-        foreach ($saldoDia as $k=>$v) {
-            if (array_key_exists($k, $contasD)) {
-                $pdf->Cell(35, 5, strtoupper($contasD[$k]), 1, 0, 'C');
+            $pdf->Ln(5);
+            foreach ($saldoDia as $k=>$v) {
+                if (array_key_exists($k, $contasD)) {
+                    $saldoB = explode('|', $saldoDia[$k]);
+                    $pdf->Cell(20, 5, "SALDO FINAL", 1, 0, 'C');
+                    $pdf->Cell(15, 5, number_format(($saldoA[0] + $contasE[$k]) - $contasS[$k], 2,',','.'), 1, 0, 'C');
+                }
             }
-        }
-
-        $pdf->Ln(5);
-        foreach ($saldoDia as $k=>$v) {
-            if (array_key_exists($k, $contasD)) {
-                $saldoA = explode('|', $saldoDia[$k]);
-                $pdf->Cell(20, 5, "SALDO INICIAL", 1, 0, 'C');
-                $pdf->Cell(15, 5, number_format($saldoA[0], 2,',','.'), 1, 0, 'C');
-            }
-        }
-
-        $pdf->Ln(5);
-        foreach ($saldoDia as $k=>$v) {
-            if (array_key_exists($k, $contasE)) {
-                $pdf->Cell(20, 5, "+ ENTRADAS", 1, 0, 'C');
-                $pdf->Cell(15, 5, number_format($contasE[$k], 2,',','.'), 1, 0, 'C');
-            }
-        }
-
-        $pdf->Ln(5);
-        foreach ($saldoDia as $k=>$v) {
-            if (array_key_exists($k, $contasS)) {
-                $pdf->Cell(20, 5, "- SAIDAS", 1, 0, 'C');
-                $pdf->Cell(15, 5, number_format($contasS[$k], 2,',','.'), 1, 0, 'C');
-            }
-        }
-
-        $pdf->Ln(5);
-        foreach ($saldoDia as $k=>$v) {
-            if (array_key_exists($k, $contasD)) {
-                $saldoB = explode('|', $saldoDia[$k]);
-                $pdf->Cell(20, 5, "SALDO FINAL", 1, 0, 'C');
-                $pdf->Cell(15, 5, number_format(($saldoA[0] + $contasE[$k]) - $contasS[$k], 2,',','.'), 1, 0, 'C');
-            }
-        }
         
         break;
 }

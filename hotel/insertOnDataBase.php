@@ -216,7 +216,7 @@
                 foreach ($qtos as $k=>$v) {
                     if (!empty($v)) {
                         // nessa linha abaixo esta com o nome da tabela digitado e não usando variavel pois não esta no arquivo de tabelas informado na ultima versão a proxima linha esta com a variavel correta
-                        $sqlQtoReserva = "SELECT id_hotel_local FROM apartamentos_reservas WHERE id =$v";
+                        $sqlQtoReserva = "SELECT id_hotel_local, razao FROM apartamentos_reservas WHERE id =$v";
                         //$sqlQtoReserva = "SELECT id_hotel_local FROM $TAPARTAMENTOS_RESERVAS WHERE id =$v";
                         $getQtoReserva = mysqli_query($conn_a, $sqlQtoReserva);
                         $qto = mysqli_fetch_assoc($getQtoReserva);
@@ -225,7 +225,7 @@
                         $sqlDeletReservas = "DELETE FROM apartamentos_reservas WHERE id = $v";
                         //$sqlDeletReservas = "DELETE FROM $TAPARTAMENTOS_RESERVAS WHERE id = $v";
                         if (mysqli_query($conn_a, $sqlDeletReservas)) {
-                            $msg = "|REMOVERESERVA|".$qto['id_hotel_local']."|:;";
+                            $msg = "|REMOVERESERVA|".$qto['id_hotel_local']."|:;|CPROD|".$qto['razao']."|:;|XPROD||:;|QTDO||:;|VRO||:;|QTDN|0|:;|VRN|0.00|:;";
                             $sqlItemLog = "INSERT INTO $TLOGSMENSAGEM (mensagem, datacad, cnpjcpfcad, cnpjcpfseg, quescript, dataatu, ip) VALUES ('|DONO|".$qto['id_hotel_local']."|:;|CNPJCPF|"."|:;".$msg."', '".time()."', '".$_SESSION['ADMIN']['cnpj']."', '".$_SESSION['ADMIN']['cnpj_segmento']."', 'REMOVERESERVA-HOTELRECEPCAO', '".time()."', '".$_SERVER["REMOTE_ADDR"]."');";
                             mysqli_query($conn_a, $sqlItemLog);
                         } else {
